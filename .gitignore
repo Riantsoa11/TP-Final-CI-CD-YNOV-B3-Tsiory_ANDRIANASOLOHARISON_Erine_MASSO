@@ -9,5 +9,6 @@ logs
 *.pem
 *.key
 backup-*.sql
-backups/*.sql
+backups/
+dumps/
 tmp
