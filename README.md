@@ -65,11 +65,40 @@ feature/*   <- nouvelles fonctionnalites
 hotfix/*    <- corrections urgentes depuis main
 ```
 
-## Tableau de suivi incident
+## Observabilité
 
-| Symptome | Heure | Cause | Commande | Resultat |
-|----------|-------|-------|----------|---------|
-| /api/products 500 | - | - | `docker compose logs api` | - |
+### Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/health` | Etat API + DB + version |
+| `GET /api/ready` | Readiness (utilisé par le healthcheck Compose) |
+
+### Logs JSON structurés
+
+Chaque requête produit une ligne JSON avec : `level`, `method`, `path`, `status`, `duration_ms`, `request_id`, `timestamp`.
+
+Les niveaux utilisés : `debug` / `info` / `warn` (4xx) / `error` (5xx) / `fatal`.
+
+Le champ `request_id` est propagé dans le header `X-Request-Id` pour tracer une requête de bout en bout.
+
+Les données sensibles (`password`, `secret`, `token`, `key`, `database_url`) sont automatiquement masquées par `***` dans tous les logs.
+
+### Centralisation des logs en production
+
+En production, les logs JSON seraient centralisés via :
+- **ELK Stack** (Elasticsearch + Logstash + Kibana) ou **Loki + Grafana**
+- Driver Docker `fluentd` ou `syslog` à la place de `json-file`
+- Alerting sur les niveaux `error` et `fatal`
+
+### Tableau de suivi incident
+
+| Symptome | Heure | Cause | Commande diagnostic | Resultat |
+|----------|-------|-------|---------------------|---------|
+| `/api/products` renvoie 500 | T+0 | Route cassee intentionnellement | `docker compose logs --tail=50 api` | Erreur visible dans logs |
+| Test Jest rouge | T+1 | `npm test` echoue sur products | `npm test` | 2 tests fails |
+| Rollback image v1.0.0 | T+5 | `bash scripts/rollback.sh v1.0.0` | `curl /api/products` | 200 OK |
+| Tests verts apres rollback | T+6 | Version stable restauree | `npm test` | 7/7 passed |
 
 ## Diagnostic rapide
 
@@ -77,5 +106,6 @@ hotfix/*    <- corrections urgentes depuis main
 docker compose ps
 docker compose logs --tail=100 api
 curl http://localhost:8080/api/health
+curl http://localhost:8080/api/ready
 docker inspect shoplite_api
 ```
