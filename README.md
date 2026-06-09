@@ -1,74 +1,81 @@
-# ShopLite - Starter TP final DevOps
+# ShopLite — TP Final DevOps
 
-ShopLite est un projet de base pour un TP final DevOps.
+[![CI](https://github.com/Riantsoa11/TP-Final-CI-CD-YNOV-B3-Tsiory_ANDRIANASOLOHARISON_Erine_MASSO/actions/workflows/ci.yml/badge.svg)](https://github.com/Riantsoa11/TP-Final-CI-CD-YNOV-B3-Tsiory_ANDRIANASOLOHARISON_Erine_MASSO/actions/workflows/ci.yml)
+[![CD](https://github.com/Riantsoa11/TP-Final-CI-CD-YNOV-B3-Tsiory_ANDRIANASOLOHARISON_Erine_MASSO/actions/workflows/cd.yml/badge.svg)](https://github.com/Riantsoa11/TP-Final-CI-CD-YNOV-B3-Tsiory_ANDRIANASOLOHARISON_Erine_MASSO/actions/workflows/cd.yml)
 
-Les etudiants recoivent uniquement ce socle applicatif :
+Mini application e-commerce industrialisée : API Node.js, frontend statique, PostgreSQL, Docker, CI/CD GitHub Actions.
 
-- API Node.js / Express
-- Frontend HTML / CSS / JS
-- Script SQL PostgreSQL
-- Un test de sante minimal
-- Une configuration Docker minimale pour lancer le projet
-
-Le travail du TP consiste a construire progressivement :
-
-- Git propre et strategie de branches
-- Ameliorer les Dockerfile API et frontend
-- Ameliorer docker-compose dev / staging / prod
-- CI/CD GitHub Actions
-- tests automatises
-- logs propres
-- securite container
-- backup PostgreSQL
-- rollback sans perte de donnees
-- documentation professionnelle
-
-## Lancement rapide avec Docker
+## Lancement rapide
 
 ```bash
+cp .env.example .env
 docker compose up -d --build
 ```
 
-Ouvrir :
+| URL | Description |
+|-----|-------------|
+| http://localhost:8080 | Frontend |
+| http://localhost:8080/api/health | Health check |
+| http://localhost:8080/api/products | Liste produits |
+| http://localhost:8081 | Staging (port distinct) |
 
-```text
-http://localhost:8080
-```
+## Environnements
 
-Tester :
+| Env | Port | Branche / Tag | Déploiement |
+|-----|------|---------------|-------------|
+| dev | 8080 | toutes branches | manuel |
+| staging | 8081 | `develop` | automatique (CD) |
+| production | 8080 | tag `v*` | manuel approuvé (CD) |
 
-```bash
-curl http://localhost:8080/api/health
-curl http://localhost:8080/api/products
-```
-
-Arreter sans supprimer les donnees :
-
-```bash
-docker compose down
-```
-
-## Lancement hors Docker pour prise en main
+## Tests
 
 ```bash
 cd api
 npm install
 npm test
-npm start
+npm run lint
+npm run format:check
 ```
 
-API :
+## Docker
 
-```text
-http://localhost:3000/health
-http://localhost:3000/products
+```bash
+# Build local
+docker build -t shoplite-api:v1.0.0 ./api
+docker images shoplite-api
+
+# Staging
+docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
+
+# Arreter (sans supprimer les donnees)
+docker compose down
 ```
 
-Frontend :
+## CI/CD
 
-Ouvrir `frontend/src/index.html` dans un navigateur ou le servir avec un serveur statique.
+- **CI** : lint + tests (Node 18 & 20) + build Docker — declenche sur push et PR
+- **CD** : deploy staging sur `develop`, deploy production sur tag `v*` avec approbation manuelle
 
-## Important
+## Branches
 
-Le projet contient maintenant le minimum pour tourner avec Docker.
-Les etudiants doivent l'ameliorer pendant le TP pour atteindre les exigences finales.
+```
+main        <- production stable (tags v*)
+develop     <- integration (auto-deploy staging)
+feature/*   <- nouvelles fonctionnalites
+hotfix/*    <- corrections urgentes depuis main
+```
+
+## Tableau de suivi incident
+
+| Symptome | Heure | Cause | Commande | Resultat |
+|----------|-------|-------|----------|---------|
+| /api/products 500 | - | - | `docker compose logs api` | - |
+
+## Diagnostic rapide
+
+```bash
+docker compose ps
+docker compose logs --tail=100 api
+curl http://localhost:8080/api/health
+docker inspect shoplite_api
+```
