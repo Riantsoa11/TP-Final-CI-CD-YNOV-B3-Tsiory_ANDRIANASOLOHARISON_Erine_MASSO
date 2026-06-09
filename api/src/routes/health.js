@@ -6,7 +6,7 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   const checks = {
     api: "ok",
-    database: "unknown"
+    database: "unknown",
   };
 
   let status = 200;
@@ -23,7 +23,7 @@ router.get("/", async (req, res) => {
     status: status === 200 ? "ok" : "error",
     service: "shoplite-api",
     checks,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

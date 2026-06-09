@@ -6,9 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "test": "jest --runInBand",
+    "test": "jest --runInBand --forceExit",
     "lint": "eslint src tests",
-    "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\""
+    "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\""
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -23,6 +24,14 @@
     "supertest": "^7.0.0"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "coverageThreshold": {
+      "global": {
+        "lines": 80,
+        "functions": 80,
+        "branches": 70,
+        "statements": 80
+      }
+    }
   }
 }
