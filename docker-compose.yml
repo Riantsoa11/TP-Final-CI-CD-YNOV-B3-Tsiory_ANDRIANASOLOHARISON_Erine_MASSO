@@ -39,10 +39,16 @@ services:
       API_PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-shoplite}:${POSTGRES_PASSWORD:-shoplite_password}@db:5432/${POSTGRES_DB:-shoplite}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      APP_VERSION: ${APP_VERSION:-starter}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
     networks:
       - shoplite_net
     logging:
@@ -78,8 +84,10 @@ services:
     ports:
       - "${HTTP_PORT:-8080}:80"
     depends_on:
-      - api
-      - frontend
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
     networks:
       - shoplite_net
     logging:
