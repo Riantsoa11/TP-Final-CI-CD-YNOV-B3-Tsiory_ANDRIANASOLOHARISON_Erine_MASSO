@@ -31,6 +31,7 @@ services:
           memory: 256M
 
   api:
+    image: shoplite-api:${API_VERSION:-latest}
     build: ./api
     container_name: shoplite_api
     env_file:
