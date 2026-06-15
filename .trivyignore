@@ -1,0 +1,5 @@
+# Trivy ignore file — faux-positifs acceptes apres analyse manuelle
+# Format : CVE-XXXX-XXXXX  # raison + date d'acceptation
+
+# Exemple (a remplir apres le premier scan en production) :
+# CVE-2023-XXXXX  # vuln dans node:alpine sans correctif disponible — 2026-06-15
