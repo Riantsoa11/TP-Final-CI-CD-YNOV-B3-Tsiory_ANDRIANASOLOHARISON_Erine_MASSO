@@ -185,7 +185,7 @@ jobs:
         run: docker build -t shoplite-api:scan ./api
 
       - name: Scan API image — critical & high CVEs
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: shoplite-api:scan
           format: table
@@ -195,7 +195,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Scan API image — SARIF report
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: shoplite-api:scan
           format: sarif
@@ -211,7 +211,7 @@ jobs:
           sarif_file: trivy-results.sarif
 
       - name: Scan filesystem — secrets & misconfigurations
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           scan-ref: .
