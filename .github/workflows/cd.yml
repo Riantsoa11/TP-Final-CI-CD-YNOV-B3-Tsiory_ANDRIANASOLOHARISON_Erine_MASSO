@@ -25,6 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env from .env.example
+        run: cp .env.example .env
+
       - name: Validate Compose config (staging)
         run: |
           docker compose -f docker-compose.yml -f docker-compose.staging.yml config > /dev/null
@@ -59,6 +62,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Create .env from .env.example
+        run: cp .env.example .env
 
       - name: Validate Compose config (production)
         run: |
