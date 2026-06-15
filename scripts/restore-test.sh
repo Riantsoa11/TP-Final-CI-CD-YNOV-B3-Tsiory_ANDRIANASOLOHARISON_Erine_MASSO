@@ -1,48 +1,76 @@
 #!/bin/sh
 set -eu
 
-BACKUP_DIR="${BACKUP_DIR:-./backups}"
-DB_CONTAINER="${DB_CONTAINER:-shoplite_db}"
-POSTGRES_USER="${POSTGRES_USER:-shoplite}"
-TEMP_DB="shoplite_restore_test"
+# ============================================================
+# restore-test.sh — Tester la restauration d'un dump
+# ============================================================
+#
+# Ce script vérifie qu'un dump créé par backup.sh est VALIDE
+# et RESTAURABLE, en le restaurant dans une base TEMPORAIRE
+# (donc sans toucher à la vraie base de données).
+#
+# Pourquoi une base temporaire ?
+#   Si on restaurait directement dans "shoplite", on écraserait
+#   les données actuelles. Une base temporaire permet de tester
+#   "est-ce que ce dump fonctionne ?" sans aucun risque.
+#
+# Usage :
+#   ./scripts/restore-test.sh                       (prend le dump le plus récent)
+#   ./scripts/restore-test.sh backups/shoplite_xxx.sql  (dump spécifique)
+# ============================================================
 
-# Trouver le dernier backup ou utiliser celui passé en argument
-if [ "${1:-}" != "" ]; then
+CONTAINER="${DB_CONTAINER:-shoplite_db}"
+DB_USER="${POSTGRES_USER:-shoplite}"
+BACKUP_DIR="${BACKUP_DIR:-./backups}"
+TEST_DB="shoplite_restore_test"
+
+# --- Choix du fichier de dump ---
+# Si un argument est fourni, on l'utilise. Sinon, on prend
+# automatiquement le dump le plus récent du dossier backups/.
+if [ $# -ge 1 ]; then
   DUMP_FILE="$1"
 else
-  DUMP_FILE=$(ls -1t "${BACKUP_DIR}"/backup-*.sql 2>/dev/null | head -1 || true)
+  DUMP_FILE=$(ls -1t "${BACKUP_DIR}"/shoplite_*.sql 2>/dev/null | head -n 1)
 fi
 
-if [ -z "$DUMP_FILE" ] || [ ! -f "$DUMP_FILE" ]; then
-  echo "[restore-test] Aucun fichier de backup trouvé dans ${BACKUP_DIR}"
+if [ -z "${DUMP_FILE:-}" ] || [ ! -f "$DUMP_FILE" ]; then
+  echo "Aucun fichier de dump trouvé. Lance d'abord ./scripts/backup.sh"
   exit 1
 fi
 
-echo "[restore-test] Fichier : ${DUMP_FILE}"
-echo "[restore-test] Base temporaire : ${TEMP_DB}"
+echo "Test de restauration du dump : $DUMP_FILE"
 
-# Créer la base temporaire
-docker exec "$DB_CONTAINER" psql -U "$POSTGRES_USER" -c "DROP DATABASE IF EXISTS ${TEMP_DB};" > /dev/null
-docker exec "$DB_CONTAINER" psql -U "$POSTGRES_USER" -c "CREATE DATABASE ${TEMP_DB};" > /dev/null
-echo "[restore-test] Base temporaire créée"
+# --- Étape 1 : créer une base temporaire propre ---
+# On supprime d'abord l'ancienne base de test si elle existe
+# (au cas où un précédent test a échoué et laissé des résidus),
+# puis on en crée une nouvelle vide.
+echo "Création de la base temporaire '${TEST_DB}'..."
+docker exec -t "$CONTAINER" psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS ${TEST_DB};"
+docker exec -t "$CONTAINER" psql -U "$DB_USER" -d postgres -c "CREATE DATABASE ${TEST_DB};"
 
-# Restaurer le dump
-docker exec -i "$DB_CONTAINER" psql -U "$POSTGRES_USER" -d "$TEMP_DB" < "$DUMP_FILE" > /dev/null
-echo "[restore-test] Dump restauré"
+# --- Étape 2 : restaurer le dump dans cette base temporaire ---
+# On envoie le contenu du fichier SQL via stdin au conteneur
+# ("docker exec -i" = mode interactif, nécessaire pour lire stdin).
+echo "Restauration du dump dans '${TEST_DB}'..."
+docker exec -i "$CONTAINER" psql -U "$DB_USER" -d "$TEST_DB" < "$DUMP_FILE" > /dev/null
 
-# Vérifier les données
-COUNT=$(docker exec "$DB_CONTAINER" psql -U "$POSTGRES_USER" -d "$TEMP_DB" -t -c "SELECT COUNT(*) FROM products;" | tr -d ' \n')
-echo "[restore-test] Lignes dans products : ${COUNT}"
+# --- Étape 3 : vérifier que les données sont bien là ---
+# On compte le nombre de lignes dans la table "products".
+PRODUCT_COUNT=$(docker exec -t "$CONTAINER" psql -U "$DB_USER" -d "$TEST_DB" -tAc "SELECT COUNT(*) FROM products;" | tr -d '[:space:]')
 
-if [ "$COUNT" -gt 0 ]; then
-  echo "[restore-test] Vérification OK — données présentes"
+echo "Nombre de produits restaurés : $PRODUCT_COUNT"
+
+if [ "$PRODUCT_COUNT" -gt 0 ]; then
+  echo "Restauration réussie : le dump est valide et restaurable."
 else
-  echo "[restore-test] ERREUR — aucune donnée après restauration"
-  docker exec "$DB_CONTAINER" psql -U "$POSTGRES_USER" -c "DROP DATABASE IF EXISTS ${TEMP_DB};" > /dev/null
-  exit 1
+  echo "ERREUR : la table 'products' est vide après restauration."
+  EXIT_CODE=1
 fi
 
-# Nettoyer
-docker exec "$DB_CONTAINER" psql -U "$POSTGRES_USER" -c "DROP DATABASE ${TEMP_DB};" > /dev/null
-echo "[restore-test] Base temporaire supprimée"
-echo "[restore-test] OK"
+# --- Étape 4 : nettoyage ---
+# On supprime la base temporaire : elle ne servait qu'au test,
+# on ne veut pas la laisser traîner.
+echo "Nettoyage de la base temporaire '${TEST_DB}'..."
+docker exec -t "$CONTAINER" psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS ${TEST_DB};"
+
+exit "${EXIT_CODE:-0}"
